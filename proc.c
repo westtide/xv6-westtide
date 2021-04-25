@@ -123,7 +123,7 @@ userinit(void)
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
-  p = allocproc();
+  p = allocproc(); // main.c -> userint -> allocproc: 在页表中分配一个槽,并初始化进程的状态
   
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
