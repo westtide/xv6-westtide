@@ -96,9 +96,110 @@ Page 86 of 421: ***i386***
 	  lgdt    gdtdesc
 ```
 
-​		从真实模式切换到保护模式。使用引导GDT，使虚拟地址直接映射到物理地址，以便有效的内存映射在转换过程中不会改变。
+​		从真实模式切换到保护模式。使用引导GDT，使虚拟地址直接映射到物理地址，以便有效的内存映射在转换过程中不会改变。		
 
-​		GDT:Global Descriptor Table
+[【学习xv6】从实模式到保护模式 - leenjewel Blog](http://leenjewel.github.io/blog/2014/07/29/[(xue-xi-xv6)]-cong-shi-mo-shi-dao-bao-hu-mo-shi/)
 
-![img](https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/SegmentDescriptor.svg/640px-SegmentDescriptor.svg.png?1619431368639)	
+[全局描述符表（GDT） · 《x86汇编语言：从实模式到保护模式》读书笔记 · 看云 (kancloud.cn)](https://www.kancloud.cn/digest/protectedmode/121465)
 
+保护模式下,内存的访问仍然使用<u>***段地址加偏移地址***</u>,对段的描述符有:
+
+- 全局描述符表（Global Descriptor Table, 简称GDT）
+- 局部描述符表（Local Descriptor Table,简称LDT）
+
+进入保护模式之前,定义GDT,在CPU内部有一个48位的寄存器:**<u>*GDTR局描述符表寄存器*</u>**
+
+![GDTR](https://box.kancloud.cn/2016-02-29_56d3a8fbd2ada.jpg)
+
+```
+- 32位的线性基地址：GDT在内存中的起始线性地址（我们还没有涉及到分页，所以这里的线性地址等同于物理地址，下同，以后同）；
+- 16位的表界限：在数值上等于表的大小（总字节数）减去1；
+```
+
+注意：在处理器刚上电的时候，基地址默认为0，表界限默认为0xFFFF; 在保护模式初始化过程中，必须给GDTR加载一个新值。
+
+因为表界限是16位的，最大值是0xFFFF，也就是十进制的65535，那么表的大小就是65535+1=65536.又因为一个描述符占用8个字节，所以65536字节相当于8192个描述符（65536/8=8192）.故理论上最多可以定义8192个描述符。实际上，不一定这么多，具体多少根据需要而定。
+
+理论上，GDT可以放在内存中的任何地方。但是，我们必须在进入保护模式之前就定义GDT（不然就来不及了），所以GDT一般都定义在1MB以下的内存范围中。当然，允许在进入保护模式后换个位置重新定义GDT。
+
+GDT:Global Descriptor Table,GDT 表里的每一项叫做“段描述符”，用来记录每个内存分段的一些属性信息，每个“段描述符”占 8 字节
+
+![image-20210426192426047](/Users/xichao/Library/Application Support/typora-user-images/image-20210426192426047.png)
+
+三块“基地址(8+8+16)”组装起来正好就是 32 位的段起始内存地址，两块 Limit 组成该内存分段的长度，接下来依次解释一下其他位所代表的意义：
+
+- P:       0 本段不在内存中
+- DPL:     访问该段内存所需权限等级 00 — 11，0为最大权限级别
+- S:       1 代表数据段、代码段或堆栈段，0 代表系统段如中断门或调用门
+- E:       1 代表代码段，可执行标记，0 代表数据段
+- ED:      0 代表忽略特权级，1 代表遵守特权级
+- RW:      如果是数据段（E=0）则1 代表可写入，0 代表只读；
+           如果是代码段（E=1）则1 代表可读取，0 代表不可读取
+- A:       1 表示该段内存访问过，0 表示没有被访问过
+- G:       1 表示 20 位段界限单位是 4KB，最大长度 4GB；
+           0 表示 20 位段界限单位是 1 字节，最大长度 1MB
+- DB:      1 表示地址和操作数是 32 位，0 表示地址和操作数是 16 位
+- XX:      保留位永远是 0
+- AA:      给系统提供的保留位
+
+```
+gdt:
+  SEG_NULLASM                             # 空
+  SEG_ASM(STA_X|STA_R, 0x0, 0xffffffff)   # 代码段
+  SEG_ASM(STA_W, 0x0, 0xffffffff)         # 数据（堆栈）段
+```
+
+```
+宏定义 asm.h
+#define SEG_ASM(type,base,lim)                                  \
+        .word (((lim) >> 12) & 0xffff), ((base) & 0xffff);      \
+        .byte (((base) >> 16) & 0xff), (0x90 | (type)),         \
+                (0xC0 | (((lim) >> 28) & 0xf)), (((base) >> 24) & 0xff)
+
+#define STA_X     0x8       // Executable segment
+#define STA_W     0x2       // Writeable (non-executable segments)
+#define STA_R     0x2       // Readable (executable segments)
+
+```
+
+存疑:
+
+```
+gdt:
+  .word 0, 0;
+  .byte 0, 0, 0, 0                             # 空
+  .word 0xffff, 0x0000;
+  .byte 0x00, 0x9a, 0xcf, 0x00                 # 代码段
+  .word 0xffff, 0x0000;
+  .byte 0x00, 0x92, 0xcf, 0x00                 # 数据段
+```
+
+#### 4. Control Registers(1386-P88)
+
+![image-20210426200811053](/Users/xichao/Library/Application Support/typora-user-images/image-20210426200811053.png)
+
+CR0-系统内的控制寄存器
+
+| 第0位PE: 保护允许位    | 0-实模式, 1-**保护模式** |
+| :--------------------- | :----------------------- |
+| 第1 位MP: 监控协处理位 |                          |
+| 第2位EM: 模拟协处理位  | EM=1，不能使用协处理器   |
+| 第3位TS: 任务转换位    | TS=1，不能使用协处理器   |
+| 第4位ET: 扩展类型位    |                          |
+| 第31位PG: 分页允许位   |                          |
+
+CR1是未定义的控制寄存器，供将来的处理器使用。
+
+CR2是页故障线性地址寄存器，保存最后一次出现页故障的全32位线性地址。
+
+CR3是页目录基址寄存器，保存页目录表的物理地址，页目录表总是放在以4K字节为单位的存储器边界上，因此，它的地址的低12位总为0，不起作用，即使写上内容，也不会被理会。
+
+#### 5. long jump
+
+函数间跳转: 需要保存函数上下文
+
+​	函数栈帧:栈桢指针BP、栈顶指针SP
+
+​	PC: 跳转Label语句的地址
+
+​	其他寄存器:GPRs

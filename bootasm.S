@@ -45,30 +45,38 @@ seta20.2:
   # virtual addresses map directly to physical addresses so that the
   # effective memory map doesn't change during the transition.
   # 从真实模式切换到保护模式。使用引导GDT，使虚拟地址直接映射到物理地址，以便有效的内存映射在转换过程中不会改变。
-  lgdt    gdtdesc
-  movl    %cr0, %eax
-  orl     $CR0_PE, %eax
-  movl    %eax, %cr0
+  lgdt    gdtdesc                 # 传入48位给GDTR, 使用平坦内存模型,0-4GB(需要计算?)
+  movl    %cr0, %eax              # 控制寄存器CR0, i386-P88
+  orl     $CR0_PE, %eax           # PE = 1 保证打开了保护模式的开关,PG = 0 表示只使用分段式，不使用分页
+  movl    %eax, %cr0              # 切换到保护模式
 
 //PAGEBREAK!
   # Complete the transition to 32-bit protected mode by using a long jmp
   # to reload %cs and %eip.  The segment descriptors are set up with no
   # translation, so that the mapping is still the identity mapping.
-  ljmp    $(SEG_KCODE<<3), $start32
+  # 基地址(SEG_KCODE=1)  +  偏移量
+  # 在 GDT 中我们的代码段下标是 1 ，所以这里段选择子是 1 << 3 = 0000 0000 0000 1000
+  # 在 16 位的段选择子中前 13 位是 GDT 段表下标，这里前 13 位值是 1 代表选择代码段
+  # 而我们的代码段是从 0 开始到 4GB 结尾的，所以这里偏移量不用做转换，还是原偏移即可
+  ljmp    $(SEG_K CODE<<3), $start32 
 
 .code32  # Tell assembler to generate 32-bit code now.
 start32:
   # Set up the protected-mode data segment registers
-  movw    $(SEG_KDATA<<3), %ax    # Our data segment selector
-  movw    %ax, %ds                # -> DS: Data Segment
-  movw    %ax, %es                # -> ES: Extra Segment
-  movw    %ax, %ss                # -> SS: Stack Segment
-  movw    $0, %ax                 # Zero segments not ready for use
-  movw    %ax, %fs                # -> FS
-  movw    %ax, %gs                # -> GS
+  # 像上面讲 ljmp 时所说的，这时候已经在保护模式下了
+  # 数据段在 GDT 中的下标是 2，所以这里数据段的段选择子是 2 << 3 = 0000 0000 0001 0000
+  # 这 16 位的段选择子中的前 13 位是 GDT 段表下标，这里前 13 位的值是 2 代表选择了数据段
+  # 这里将 3 个数据段寄存器都赋值成数据段段选择子的值
+  movw    $(SEG_KDATA<<3), %ax    # Our data segment selector  段选择子赋值给 ax 寄存器
+  movw    %ax, %ds                # -> DS: Data Segment        初始化数据段寄存器
+  movw    %ax, %es                # -> ES: Extra Segment       初始化扩展段寄存器
+  movw    %ax, %ss                # -> SS: Stack Segment       初始化堆栈段寄存器
+  movw    $0, %ax                 # Zero segments not ready for use  ax 寄存器清零
+  movw    %ax, %fs                # -> FS                      辅助寄存器清零
+  movw    %ax, %gs                # -> GS                      辅助寄存器清零
 
   # Set up the stack pointer and call into C.
-  movl    $start, %esp
+  movl    $start, %esp            # 栈顶被设置为 0x7C00 处
   call    bootmain
 
   # If bootmain returns (it shouldn't), trigger a Bochs
@@ -84,11 +92,18 @@ spin:
 # Bootstrap GDT
 .p2align 2                                # force 4 byte alignment
 gdt:
-  SEG_NULLASM                             # null seg
-  SEG_ASM(STA_X|STA_R, 0x0, 0xffffffff)   # code seg
-  SEG_ASM(STA_W, 0x0, 0xffffffff)         # data seg
-
+  SEG_NULLASM                             # null seg:空
+  SEG_ASM(STA_X|STA_R, 0x0, 0xffffffff)   # code seg:代码段
+  SEG_ASM(STA_W, 0x0, 0xffffffff)         # data seg:数据段
+  # \define in asm.h
+  # \define SEG_ASM(type,base,lim)                                  
+  #      .word (((lim) >> 12) & 0xffff), ((base) & 0xffff);      
+  #      .byte (((base) >> 16) & 0xff), (0x90 | (type)),         
+  #             (0xC0 | (((lim) >> 28) & 0xf)), (((base) >> 24) & 0xff)
+  # STA_X     0x8       // Executable segment
+  # STA_W     0x2       // Writeable (non-executable segments)
+  # STA_R     0x2       // Readable (executable segments)
 gdtdesc:
-  .word   (gdtdesc - gdt - 1)             # sizeof(gdt) - 1
-  .long   gdt                             # address gdt
+  .word   (gdtdesc - gdt - 1)             # sizeof(gdt) - 1 = 16 - 1
+  .long   gdt                             # address gdt     = 32
 
