@@ -2,7 +2,7 @@
 
 #### 1.寄存器布局:
 
-<img src="/Users/xichao/Library/Application Support/typora-user-images/image-20210426155038207.png" alt="image-20210426155038207" style="zoom:30%;" />
+<img src="image-20210426155038207.png" alt="image-20210426155038207" style="zoom:30%;" />
 
 ```
 lin8: %cs=0 %ip=7c00. 
@@ -56,7 +56,7 @@ lin16:
 
 Page 86 of 421: ***i386***
 
-![截屏2021-04-26 16.15.03](/Users/xichao/Library/Application Support/typora-user-images/截屏2021-04-26 16.15.03.png)
+![截屏2021-04-26 16.15.03](%E6%88%AA%E5%B1%8F2021-04-26%2016.15.03.png)
 
 #### 3.Lin27:inb     $0x64,%al
 
@@ -109,7 +109,7 @@ Page 86 of 421: ***i386***
 
 进入保护模式之前,定义GDT,在CPU内部有一个48位的寄存器:**<u>*GDTR局描述符表寄存器*</u>**
 
-![GDTR](https://box.kancloud.cn/2016-02-29_56d3a8fbd2ada.jpg)
+![GDTR](2016-02-29_56d3a8fbd2ada.jpg)
 
 ```
 - 32位的线性基地址：GDT在内存中的起始线性地址（我们还没有涉及到分页，所以这里的线性地址等同于物理地址，下同，以后同）；
@@ -176,7 +176,7 @@ gdt:
 
 #### 4. Control Registers(1386-P88)
 
-![image-20210426200811053](/Users/xichao/Library/Application Support/typora-user-images/image-20210426200811053.png)
+![image-20210426200811053](image-20210426200811053.png)
 
 CR0-系统内的控制寄存器
 
