@@ -33,13 +33,14 @@ struct context {
 };
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+// 列举:程序的进程状态{新建、准备运行、运行、等待I/O、退出状态中}
 
-// Per-process state
+// Per-process state: 维护一个进程的众多状态
 struct proc {
   uint sz;                     // Size of process memory (bytes)
-  pde_t* pgdir;                // Page table
-  char *kstack;                // Bottom of kernel stack for this process
-  enum procstate state;        // Process state
+  pde_t* pgdir;                // Page table:页表,重要,uint,分页硬件在进程运行时使用p->pgdir,记录了保存进程内存的物理页地址
+  char *kstack;                // Bottom of kernel stack for this process:内核栈,重要
+  enum procstate state;        // Process state:进程状态,重要
   int pid;                     // Process ID
   struct proc *parent;         // Parent process
   struct trapframe *tf;        // Trap frame for current syscall
@@ -50,7 +51,10 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
 };
-
+// p->kstack 是内核栈
+// 进程的用户指令运行在用户栈,内核栈为空,用户代码不能运行在内核栈.进程破坏用户栈,内核也能保持运行.
+// 进程的系统调用or中断时,进入内核栈,内核代码在进程的内核栈中执行,用户栈数据保存,处于不活跃状态
+// 进程的线程交替使用内核栈与用户栈,
 // Process memory is laid out contiguously, low addresses first:
 //   text
 //   original data and bss
