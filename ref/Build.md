@@ -40,7 +40,17 @@ $ make qemu
 $ qemu-system-i386 -serial mon:stdio -hdb fs.img xv6.img -smp 1 -m 512
 ```
 
-![image-20210427140142918](image-20210427140142918.png)<img src="image-20210427140247441.png" alt="image-20210427140247441" style="zoom:50%;" />
+![image-20210427140142918](image-20210427140142918.png)
+
+virtual hard disk:
+
+This hard disk image contains both  `boot loader `and   `kernel`
+
+
+
+<img src="image-20210427140247441.png" alt="image-20210427140247441" style="zoom:50%;" />
+
+
 
 成功输出模拟的界面
 
