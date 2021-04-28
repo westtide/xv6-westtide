@@ -4,6 +4,7 @@
         "elf.h": "c",
         "memlayout.h": "c",
         "x86.h": "c",
-        "types.h": "c"
+        "types.h": "c",
+        "mmu.h": "c"
     }
 }
